@@ -1,16 +1,26 @@
 #!/bin/bash
 
-# Dirty Frag Vulnerability Checker
-# Checks vulnerable kernel modules and mitigation status
+# ===================================================
+# Dirty Frag Vulnerability Checker for Linux Servers
+# ===================================================
+#
+# Usage:
+# curl -s https://raw.githubusercontent.com/ajishcheeran/dirty-frag-mitigation/main/dirtyfrag_check.sh | bash
+#
+# ===================================================
+
+clear
 
 echo "==============================================="
 echo " Dirty Frag Vulnerability Checker"
 echo "==============================================="
 echo
 
-# Hostname
-echo "Hostname      : $(hostname)"
-echo "Kernel Version: $(uname -r)"
+HOSTNAME=$(hostname)
+KERNEL=$(uname -r)
+
+echo "Hostname      : $HOSTNAME"
+echo "Kernel Version: $KERNEL"
 echo
 
 VULN=0
@@ -53,16 +63,30 @@ echo
 echo "Checking IPsec/VPN usage..."
 echo
 
-if systemctl is-active --quiet strongswan 2>/dev/null; then
-    echo "[INFO] strongSwan service is ACTIVE"
+VPN_FOUND=0
+
+if command -v systemctl >/dev/null 2>&1; then
+
+    if systemctl is-active --quiet strongswan 2>/dev/null; then
+        echo "[INFO] strongSwan service is ACTIVE"
+        VPN_FOUND=1
+    fi
+
+    if systemctl is-active --quiet ipsec 2>/dev/null; then
+        echo "[INFO] IPsec service is ACTIVE"
+        VPN_FOUND=1
+    fi
 fi
 
-if systemctl is-active --quiet ipsec 2>/dev/null; then
-    echo "[INFO] IPsec service is ACTIVE"
+if command -v ip >/dev/null 2>&1; then
+    if ip xfrm state 2>/dev/null | grep -q .; then
+        echo "[INFO] IPsec xfrm states detected"
+        VPN_FOUND=1
+    fi
 fi
 
-if ip xfrm state 2>/dev/null | grep -q .; then
-    echo "[INFO] IPsec xfrm states detected"
+if [ $VPN_FOUND -eq 0 ]; then
+    echo "[OK] No active IPsec/VPN detected"
 fi
 
 echo
@@ -72,7 +96,24 @@ if [ $VULN -eq 1 ]; then
     echo "[RESULT] ACTION REQUIRED"
     echo "Server may be vulnerable or mitigation incomplete."
 else
-    echo "[RESULT] Mitigation appears OK"
+    echo "[RESULT] SERVER NOT VULNERABLE"
 fi
 
 echo "==============================================="
+echo
+
+# Optional mitigation suggestion
+
+if [ $VULN -eq 1 ]; then
+
+    echo "Recommended Mitigation:"
+    echo
+
+    echo "cat > /etc/modprobe.d/dirtyfrag.conf << EOF"
+    echo "install esp4 /bin/false"
+    echo "install esp6 /bin/false"
+    echo "install rxrpc /bin/false"
+    echo "EOF"
+
+    echo
+fi
