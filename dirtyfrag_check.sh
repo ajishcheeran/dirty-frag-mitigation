@@ -7,7 +7,7 @@
 # Usage:
 # curl -s https://raw.githubusercontent.com/ajishcheeran/dirty-frag-mitigation/main/dirtyfrag_check.sh | bash
 #
-# ===================================================
+## ===================================================
 
 clear
 
